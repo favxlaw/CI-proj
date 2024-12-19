@@ -1,0 +1,97 @@
+---
+- name: Setup Jenkins as a Docker Container with Persistent Data
+  hosts: jenkins_master
+  become: true
+  vars:
+    docker_users:
+      - ubuntu
+      - jenkins
+    jenkins_data_mount: /var/lib/jenkins
+    jenkins_container_name: jenkins
+    jenkins_port: 8080
+
+  tasks:
+    # System Updates
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+        state: present
+
+    # Docker Installation
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Python package
+      pip:
+        name: docker
+        state: present
+
+    - name: Add users to Docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      with_items: "{{ docker_users }}"
+
+    # Jenkins as Docker Container
+    - name: Create Jenkins data directory
+      file:
+        path: "{{ jenkins_data_mount }}"
+        state: directory
+        owner: 1000  # Jenkins default UID
+        group: 1000
+        mode: '0755'
+
+    - name: Pull Jenkins Docker image
+      docker_image:
+        name: jenkins/jenkins:lts
+        source: pull
+
+    - name: Run Jenkins container
+      docker_container:
+        name: "{{ jenkins_container_name }}"
+        image: jenkins/jenkins:lts
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ jenkins_port }}:8080"
+        volumes:
+          - "{{ jenkins_data_mount }}:/var/jenkins_home"
+        env:
+          JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+
+    # Output helpful information for next steps
+    - name: Print setup completion message
+      debug:
+        msg: |
+          Jenkins container setup completed:
+          1. Access Jenkins at: http://{{ ansible_host }}:{{ jenkins_port }}
+          2. Persistent data is stored in: {{ jenkins_data_mount }}
+          3. Configure the following manually:
+             - Install suggested plugins
+             - Create admin user
+             - Add necessary credentials (GitHub, SonarQube, etc.)
+             - Configure additional Jenkins plugins required for your project
