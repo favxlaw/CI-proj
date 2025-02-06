@@ -1,0 +1,64 @@
+---
+- name: Setup Jenkins Master and Agent
+  hosts: all
+  become: yes
+  tasks:
+
+    # INSTALL DOCKER ON ANSIBLE CONTROLLER
+    - name: Install required packages for Docker
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG Key
+      shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+    - name: Add Docker Repository
+      shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        update_cache: yes
+
+    - name: Start and Enable Docker Service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add User to Docker Group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    # RUN JENKINS MASTER IN A DOCKER CONTAINER
+    - name: Pull Jenkins Docker Image
+      shell: docker pull jenkins/jenkins:lts
+
+    - name: Run Jenkins Container
+      shell: docker run -d --name jenkins-master -p 8080:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home jenkins/jenkins:lts
+
+    # INSTALL JAVA & MAVEN ON JENKINS AGENT
+    - name: Install Java
+      apt:
+        name: openjdk-11-jdk
+        state: present
+      when: "'jenkins_agents' in group_names"
+
+    - name: Install Maven
+      apt:
+        name: maven
+        state: present
+      when: "'jenkins_agents' in group_names"
+
+    # ENABLE SSH ACCESS FOR JENKINS AGENT TO CONNECT TO MASTER
+    - name: Copy SSH Key to Agent
+      shell: ssh-copy-id -i ~/.ssh/CI.pem ubuntu@{{ ansible_host }}
+      when: "'jenkins_agents' in group_names"
