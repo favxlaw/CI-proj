@@ -1,6 +1,10 @@
 pipeline {
     agent any 
 
+    environment {
+        SONAR_SCANNER_HOME = tool 'SonarQube-Scanner'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -20,6 +24,30 @@ pipeline {
                 echo 'Running tests...'
                 sh 'echo Tests passed!'  
             }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarCloud') {
+                    sh '''
+                    ${SONAR_SCANNER_HOME}/bin/sonar-scanner \
+                      -Dsonar.projectKey=favxlaw_CI-proj \
+                      -Dsonar.organization=favxlaw \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=https://sonarcloud.io \
+                      -Dsonar.login=${SONAR_TOKEN}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
