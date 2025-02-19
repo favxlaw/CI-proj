@@ -15,14 +15,14 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building the project...'
-                sh 'echo Build successful!'  
+                sh 'mvn clean package'  
             }
         }
 
         stage('Test') {
             steps {
                 echo 'Running tests...'
-                sh 'echo Tests passed!'  
+                sh 'mvn test'  
             }
         }
 
@@ -37,6 +37,42 @@ pipeline {
                       -Dsonar.host.url=https://sonarcloud.io \
                       -Dsonar.login=${SONAR_TOKEN}
                     '''
+                }
+            }
+        }
+
+        stage('Upload to JFrog') {
+            steps {
+                script {
+                    rtUpload (
+                        serverId: 'jfrog-prod',
+                        spec: '''{
+                            "files": [
+                                {
+                                    "pattern": "target/*.jar",
+                                    "target": "libs-release-local/my-app/release/"
+                                }
+                            ]
+                        }'''
+                    )
+                }
+            }
+        }
+
+        stage('Download from JFrog') {
+            steps {
+                script {
+                    rtDownload (
+                        serverId: 'jfrog-prod',
+                        spec: '''{
+                            "files": [
+                                {
+                                    "pattern": "libs-release-local/my-app/release/*.jar",
+                                    "target": "downloads/"
+                                }
+                            ]
+                        }'''
+                    )
                 }
             }
         }
