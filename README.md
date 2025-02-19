@@ -19,5 +19,3 @@ This project automates the deployment of a Jenkins CI/CD pipeline using Terrafor
 - **Static Code Analysis** via SonarCloud.  
 - **Artifact Management** with JFrog Artifactory.  
 
-## Project Structure  
-. ├── CI │ ├── ansible.cfg │ ├── main.tf │ ├── setup.yml │ ├── inventory.ini │ ├── Jenkinsfile │ └── pom.xml ├── terraform.tfstate └── README.md
